@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 import tensorflow as tf
 import numpy as np
+import joblib
 
 app = Flask(__name__, static_folder='statics')
 
@@ -10,6 +11,11 @@ api_url = 'http://0.0.0.0:4000/predict'  # Update with the actual URL
 # Load the TensorFlow model
 model = tf.keras.models.load_model('my_model.keras')  # Replace 'my_model.keras' with the actual model file
 class_labels = ['Setosa', 'Versicolor', 'Virginica']
+
+# Load the sklearn model bundle (scaler + classifier)
+sk_model_bundle = joblib.load('iris_rf.joblib')
+sk_scaler = sk_model_bundle["scaler"]
+sk_clf = sk_model_bundle["model"]
 
 
 """Modern web apps use a technique named routing. This helps the user remember the URLs. 
@@ -30,7 +36,7 @@ def predict():
             petal_length = float(data['petal_length'])
             petal_width = float(data['petal_width'])
 
-            # Perform the prediction
+            # Perform the prediction with TensorFlow model
             input_data = np.array([sepal_length, sepal_width, petal_length, petal_width])[np.newaxis, ]
             prediction = model.predict(input_data)
             predicted_class = class_labels[np.argmax(prediction)]
@@ -38,6 +44,36 @@ def predict():
             # Return the predicted class in the response
             # Use jsonify() instead of json.dumps() in Flask
             return jsonify({"predicted_class": predicted_class})
+        except Exception as e:
+            return jsonify({"error": str(e)})
+    elif request.method == 'GET':
+        return render_template('predict.html')
+    else:
+        return "Unsupported HTTP method"
+
+
+@app.route('/predict_sklearn', methods=['GET','POST'])
+def predict_sklearn():
+    if request.method == 'POST':
+        try:
+            data = request.form
+            sepal_length = float(data['sepal_length'])
+            sepal_width = float(data['sepal_width'])
+            petal_length = float(data['petal_length'])
+            petal_width = float(data['petal_width'])
+
+            # Prepare features and apply the same scaling used during training
+            X = np.array([[sepal_length, sepal_width, petal_length, petal_width]])
+            X_scaled = sk_scaler.transform(X)
+
+            # Predict with sklearn model
+            proba = sk_clf.predict_proba(X_scaled)[0].tolist()
+            pred_idx = int(np.argmax(proba))
+            predicted_class = class_labels[pred_idx]
+
+            return jsonify({
+                "predicted_class": predicted_class
+            })
         except Exception as e:
             return jsonify({"error": str(e)})
     elif request.method == 'GET':
