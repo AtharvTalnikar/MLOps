@@ -1,1 +1,32 @@
-In Lab 2, I extended the language-model data pipeline to support true streaming data loading using Hugging Face Datasets and a custom PyTorch IterableDataset. The new implementation tokenizes and chunks text on-the-fly, yielding fixed-length blocks without ever loading the full dataset into memory. I focused on scalability and performance, measuring the pipeline’s efficiency with a throughput benchmark that achieved roughly 91 k tokens per second on a single-process loader (num_workers = 0). This demonstrated that the streaming pipeline can continuously feed data for large-scale LLM training while remaining memory-efficient and stable in a Windows environment.
+# Changes Made in Lab 2 — LLM Data Pipeline (Streaming)
+
+## What I Changed from the Original Lab
+
+1. **Refactored the streaming iterator**
+   - Rewrote the inline token-packing logic into a clean `StreamingLMIterableDataset` class.
+   - The iterator now uses a rolling buffer to yield **uniform fixed-length `[B, T]` blocks** for training.
+
+2. **Added a custom `collate_fn`**
+   - Handles `attention_mask` and `labels` explicitly:
+     ```python
+     def collate_fn(batch):
+         x = torch.stack(batch)
+         return {"input_ids": x, "labels": x.clone(), "attention_mask": torch.ones_like(x)}
+     ```
+   - Ensures each batch is ready for causal-language-model training.
+
+3. **Set GPT-2 padding policy**
+   - Defined `tokenizer.pad_token = tokenizer.eos_token` so partial blocks pad safely.
+
+4. **Stable configuration for Windows**
+   - Used `num_workers = 0` to avoid multiprocessing crashes with streaming datasets.
+   - Keeps the code stable in notebooks while remaining compatible with multi-worker sharding on Linux.
+
+5. **Throughput measurement added**
+   - Implemented a `measure_throughput(loader, steps=200)` function to track data-pipeline speed.
+   - **Result:** `Steps: 200, Tokens: 1,638,400, Time: 17.88 s → ~91,634 tokens/sec`.
+
+---
+
+**In summary:**  
+We replaced the ad-hoc stream logic with a structured `IterableDataset`, added a proper collate step and padding rule, ensured Windows stability by running single-process (`num_workers=0`), and introduced a throughput benchmark to quantify performance.
