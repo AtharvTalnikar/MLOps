@@ -28,14 +28,47 @@
 
 | block_size | batch_size | num_workers | Steps | Tokens    | Time (s) | ~Tokens/sec |
 |-----------:|-----------:|------------:|------:|-----------:|---------:|------------:|
-| 1024       | 8          | 0           | 200   | 1,638,400  | 17.88    | 91,634      |
-| 2048       | 8          | 0           | 146   | 2,390,016  | 24.20    | 98,774      |
+| 512        | 8          | 0           | 200   | 819,200    | 8.67     | 94,537      |
+| 1024       | 8          | 0           | 200   | 1,638,400  | 7.95     | 206,027     |
 
-**Interpretation:** Increasing `block_size` from **1024 → 2048** improved throughput (~**+7.8%**) by reducing Python overhead and packing waste. Trade-offs: slightly higher per-batch memory and latency, but same single-process configuration (`num_workers=0`) remained stable on Windows.
-
+**Interpretation:** When streaming the IMDb dataset, increasing `block_size` from **512 to 1024** more than **doubled throughput** — from roughly **94k tokens/sec** to **206k tokens/sec**.  
+The improvement comes from packing more tokens per block, which reduces iteration overhead and the number of concatenation steps needed per batch.  
+Larger blocks make token grouping more efficient for language-model training, though they require slightly higher memory per batch.  
+The pipeline remained stable with `num_workers = 0` on Windows, confirming that even single-process streaming can achieve strong performance gains through better token packing.
 
 ---
 
 **In summary:**  
 We replaced the ad-hoc stream logic with a structured `IterableDataset`, added a proper collate step and padding rule, ensured Windows stability by running single-process (`num_workers=0`), and introduced a throughput benchmark to quantify performance.
 
+
+## Dataset Update and Quick Preview
+
+- Default dataset: **IMDb** (streaming).
+- The pipeline uses the **`text`** field only (labels are ignored for LM).  
+- A small **preview cell** prints a few review snippets without consuming the main iterator.
+
+**Where to configure (in `Lab2.ipynb`):**
+- `dataset_name = "imdb"`
+- `dataset_config = None`
+- `dataset_split = "train"`
+- `streaming_mode = True`
+
+**Where it’s used:**
+- **Dataset configuration** cell (sets the variables above)
+- **Quick preview (non-destructive)** cell (loads a separate small iterator)
+- **Stream factory** (`make_stream()`), which builds the main iterator for the loader
+
+### Switching Datasets
+- Wikitext-2 (raw):
+  - `dataset_name = "wikitext"`
+  - `dataset_config = "wikitext-2-raw-v1"`
+  - `dataset_split = "train"`
+- Local text files:
+  - Replace load calls with `load_dataset("text", data_files={"train": "path/to/file.txt"}, streaming=True)`
+- CSV files:
+  - `load_dataset("csv", data_files={"train": "path/to/data.csv"}, streaming=True)`
+
+### Notes
+- IMDb examples have `text` and `label`; the LM pipeline uses only `text` for tokenization and treats it as unlabeled language modeling data.
+- The preview cell uses a separate iterator, so it won’t disturb training data iteration.
