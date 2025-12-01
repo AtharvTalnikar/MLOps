@@ -1,0 +1,53 @@
+# ----- OS / Editor / IDE -----
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+.vscode/
+.idea/
+*.code-workspace
+
+# Cursor / local terminals metadata
+.cursor/
+terminals/
+
+# Python / notebooks
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# DVC (if used, its own metadata stays, but caches can be large)
+.dvc/tmp/
+.dvc/cache/
+
+# Node / JS (just in case)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# Secrets / credentials
+*.json
+*.pem
+*.key
+*.crt
+*.p12
+
+# Keep keys directory out of git explicitly
+keys/
+
+
